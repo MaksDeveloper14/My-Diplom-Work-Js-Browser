@@ -184,19 +184,6 @@ function userSelectionOfFile() {
 function userSelectsFileTransfer() {
 	wrapApp.addEventListener('drop', function(event) {
 		event.preventDefault();
-		if(applicationState.pictureOnCanvas === true) {
-			errorMessage.textContent = 'Чтобы загрузить новое изображение, пожалуйста, воспользуйтесь пунктом "Загрузить новое" в меню';
-			error.style.display = 'block';
-			menu.style.display = 'none';
-			currentImage.style.opacity = 0.3;
-			setTimeout(function(){
-				error.style.display = 'none';
-				menu.style.display = 'block';
-				currentImage.style.display = 'block';
-				currentImage.style.opacity = 1;
-			},3000);
-			return;
-		}
 		let userFile = event.dataTransfer.files[0];
 		if(userFile.type === 'image/jpeg' || userFile.type === 'image/png') {
 			sendFile(userFile);
@@ -208,10 +195,6 @@ function userSelectsFileTransfer() {
 			errorMessage.textContent = 'Неверный формат файла. Пожалуйста, выберите изображение в формате .jpg или .png.';
 			error.style.display = 'block';
 			menu.style.display = 'none';
-			setTimeout(function() {
-				error.style.display = 'none';
-				menu.style.display = 'block';
-			},5000);
 		}
 	});
 	wrapApp.addEventListener('dragover', function(event) {
@@ -1091,6 +1074,7 @@ document.addEventListener("DOMContentLoaded", function() {
 			menuBurger.addEventListener('click', clickBurger);
 		} else if(localStorage.appState === 'appReview') {
 			userSelectionOfFile();
+			userSelectsFileTransfer();
 			menuBurger.addEventListener('click', clickBurger);
 			appReview();
 			// Позиция меню
