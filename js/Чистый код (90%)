@@ -9,6 +9,7 @@ const currentImage = document.querySelector('.current-image');
 const error = document.querySelector('.error');
 const imageLoader = document.querySelector('.image-loader');
 const commentsForm = document.querySelector('.comments__form');
+const menuUrl = document.querySelector('.menu__url');
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~  Интерфейс меню DOM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,6 +49,12 @@ let connectionWebSocket;
 
 // в каком режиме находится меню
 let menuMode;
+
+// для входа в приложение по ссылке (ссылка на рецензирование текущей картинки)
+let currentImageLink;
+
+// путь к файлу 
+let srcDocumentHtml = 'file:///C:/Web%20%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D0%B0/%D0%9D%D0%B5%D1%82%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F%20-%D0%92%D0%B5%D0%B1-%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%87%D0%B8%D0%BA%20(%D0%BA%D1%83%D1%80%D1%81%D1%8B)/JS%20%D0%B2%20%D0%B1%D1%80%D0%B0%D1%83%D0%B7%D0%B5%D1%80%D0%B5/%D0%94%D0%B8%D0%BF%D0%BB%D0%BE%D0%BC%D0%BD%D0%B0%D1%8F%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0/index.html';
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~ Отменяем действия браузера по-умолчанию ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -261,7 +268,6 @@ function appPublication() {
 function appReview() {
 	console.log('function appReview');
 
-
 	// ~ интерфейс приложения ~
 
 	createCanvas();
@@ -298,7 +304,6 @@ function appReview() {
 	menuMode = 'share';
 
 	createWebSocket();
-
 }
 
 
@@ -440,7 +445,12 @@ function createWebSocket() {
 	}
 
 	connectionWebSocket.onmessage = function(e) {
-		console.log(JSON.parse(e.data));
+		let response = JSON.parse(e.data);
+		console.log(response);
+		if(response.event === 'mask') {
+			// Обновляем ссылку на изображение (с новыми данными)
+			menuUrl.value = response.url;
+		}
 	}
 
 	connectionWebSocket.onclose = function(e) {
@@ -508,6 +518,13 @@ function createCanvas() {
 	canvas.style.bottom = 0;
 	ctx = canvas.getContext("2d");
 
+	// чтобы сохраняя canvas (было изображение и рисунки на нем), бросаем загруженное изображение на canvas, 
+	currentImage.addEventListener('load', function(e) {
+		currentImage.setAttribute('crossorigin', 'anonymous'); // Устанавливаем атрибут img, чтобы брать картинку с другого источника (с CORS) и без порчи canvas
+		let currentImageDomRect = currentImage.getBoundingClientRect();
+		ctx.drawImage(currentImage, currentImageDomRect.left, currentImageDomRect.top);
+	});
+
 	canvas.addEventListener('mousedown', startDrawing);
 	canvas.addEventListener('mouseup', stopDrawing);
 }
@@ -522,7 +539,7 @@ function startDrawing(e) {
 }
 
 function stopDrawing(e) {
-	e.stopPropagation()
+	e.stopPropagation();
 	canvas.removeEventListener('mousemove', painting);
 	ctx.beginPath();
 	// Отправляем бинарные данные canvas по веб-сокету
@@ -909,7 +926,8 @@ document.addEventListener('DOMContentLoaded', inputFileHidden);
 document.addEventListener('DOMContentLoaded', userSelectsFileTransfer);
 document.addEventListener('DOMContentLoaded', startMenuTransfer);
 document.addEventListener('DOMContentLoaded', appPublication);
-document.addEventListener('DOMContentLoaded', appReload);
+
+// document.addEventListener('DOMContentLoaded', appReload);
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
 function onDOMContentLoaded() {
@@ -930,3 +948,14 @@ function appReload() {
 
 	// Сохраняем настройки приложения (интерфейс appReload)
 }
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~ Вход в приложение из режима поделиться - по ссылке ~~~~~~~~~~~~~~~~~~~~~~
+
+function appLink() {
+	let currentImagelink = srcDocumentHtml + '?' + 'share';
+	if(window.location.href === currentImageMask) {
+		alert('Приложение перешло по ссылке');
+	}
+}
+
