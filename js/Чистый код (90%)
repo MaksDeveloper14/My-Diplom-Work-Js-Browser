@@ -1,3 +1,4 @@
+
 'use strict';
 
 
@@ -50,11 +51,10 @@ let connectionWebSocket;
 // в каком режиме находится меню
 let menuMode;
 
-// для входа в приложение по ссылке (ссылка на рецензирование текущей картинки)
-let currentImageLink;
+let appByLink;
 
-// путь к файлу 
-let srcDocumentHtml = 'file:///C:/Web%20%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D0%B0/%D0%9D%D0%B5%D1%82%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F%20-%D0%92%D0%B5%D0%B1-%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%87%D0%B8%D0%BA%20(%D0%BA%D1%83%D1%80%D1%81%D1%8B)/JS%20%D0%B2%20%D0%B1%D1%80%D0%B0%D1%83%D0%B7%D0%B5%D1%80%D0%B5/%D0%94%D0%B8%D0%BF%D0%BB%D0%BE%D0%BC%D0%BD%D0%B0%D1%8F%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0/index.html';
+// Информация нового комментария
+let dataNewComment;
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~ Отменяем действия браузера по-умолчанию ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -172,6 +172,7 @@ function onClickBurger(e) {
 
 	// удаляем рисование
 	canvas.removeEventListener('mousedown', startDrawing);
+	canvas.style.display = 'none';
 }
 
 function selected(e) {
@@ -197,6 +198,7 @@ function selected(e) {
 	menuMode = result;
 	if(menuMode === 'draw') {
 		// добавляем рисование
+		canvas.style.display = 'block';
 		canvas.addEventListener('mousedown', startDrawing);
 	}
 
@@ -268,6 +270,7 @@ function appPublication() {
 function appReview() {
 	console.log('function appReview');
 
+
 	// ~ интерфейс приложения ~
 
 	createCanvas();
@@ -304,6 +307,7 @@ function appReview() {
 	menuMode = 'share';
 
 	createWebSocket();
+
 }
 
 
@@ -378,6 +382,7 @@ function sendFile(file) {
 		let response = JSON.parse(xhr.response);
 		// сохраняем id текущей картинки с сервера
 		currentImageId = response.id;
+		menuUrl.value = location.href + '?'+ currentImageId;
 
 		console.log(response);
 
@@ -389,8 +394,6 @@ function sendFile(file) {
 		currentImage.setAttribute('src', response.url);
 		currentImage.style.display = 'block';
 		menu.style.display = 'block';
-		// в режим поделиться сохраняем ссылку на currentImage
-		document.querySelector('.menu__url').value = response.url;
 
 		appReview();
 	});
@@ -419,6 +422,9 @@ function sendComment(id, comment) {
 		console.log(xhr);
 		// удаляем прелоадер отправки комментария
 		app.querySelector('#comment-loader').remove();
+		dataNewComment = response.comments;
+		console.log(dataNewComment);
+		// Добавляем комментарий в приложение с сервера
 	});
 	xhr.send(body);
 	// вставляем прелоадер отправки комментария в body комментария
@@ -431,6 +437,10 @@ function requestImage(id) {
 	xhr.open('GET', 'https://neto-api.herokuapp.com/pic/' + id);
 	xhr.addEventListener('load', () => {
 		let response = JSON.parse(xhr.response);
+		if(appByLink === true) {
+			setImage(response);
+			setComments(response);
+		}
 		console.log(response);
 	});
 	xhr.send();
@@ -449,7 +459,8 @@ function createWebSocket() {
 		console.log(response);
 		if(response.event === 'mask') {
 			// Обновляем ссылку на изображение (с новыми данными)
-			menuUrl.value = response.url;
+			currentImage.src = response.url;
+			console.log('Есть');
 		}
 	}
 
@@ -527,6 +538,7 @@ function createCanvas() {
 
 	canvas.addEventListener('mousedown', startDrawing);
 	canvas.addEventListener('mouseup', stopDrawing);
+	canvas.addEventListener('mouseup', sendBinaryData);
 }
 
 function deleteCanvas(canvas) {
@@ -542,7 +554,10 @@ function stopDrawing(e) {
 	e.stopPropagation();
 	canvas.removeEventListener('mousemove', painting);
 	ctx.beginPath();
-	// Отправляем бинарные данные canvas по веб-сокету
+}
+
+// Отправляем бинарные данные canvas по веб-сокету
+function sendBinaryData() {
 	if(menuMode === 'draw') {
 		canvas.toBlob(function(blob) {
 			connectionWebSocket.send(blob);
@@ -573,6 +588,16 @@ function painting(e) {
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~ РЕЖИМ КОММЕНТИРОВАНИЯ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	// Шаблон нового комментария
+	const commentNew = `<form class="comments__form">
+      <span class="comments__marker"></span><input type="checkbox" class="comments__marker-checkbox">
+      <div class="comments__body" style="display:block; position: relative; z-index:99999999">
+        <textarea class="comments__input" type="text" placeholder="Напишите ответ..."></textarea>
+        <input class="comments__close" type="button" value="Закрыть">
+        <input class="comments__submit" type="submit" value="Отправить">
+     	</div>
+    </form>`;
 
 	// управление интерфейсом
 	let commentsFormCollection = app.querySelectorAll('.comments__form');
@@ -671,16 +696,6 @@ function painting(e) {
 	// Создать новый комментарий
 	function createNewComment(e) {
 		console.log('Создать новый комментарий');
-
-		// Шаблон нового комментария
-		const commentNew = `<form class="comments__form">
-        <span class="comments__marker"></span><input type="checkbox" class="comments__marker-checkbox">
-        <div class="comments__body" style="display:block; position: relative; z-index:99999999">
-          <textarea class="comments__input" type="text" placeholder="Напишите ответ..."></textarea>
-          <input class="comments__close" type="button" value="Закрыть">
-          <input class="comments__submit" type="submit" value="Отправить">
-       	</div>
-      </form>`;
 
 		let commentsForm = document.querySelectorAll('.comments__form');
 		if(commentsForm.length >= 1) {
@@ -808,7 +823,7 @@ function painting(e) {
 				if(commentsInput.value !== '') {
 					// Если первый комментарий
 					if(commentBody.querySelectorAll('.comment').length === 0) {
-						// Обновляни коллекцию комментариев в интерфейсе
+						// Обновляем коллекцию комментариев в интерфейсе
 						commentsFormCollection = app.querySelectorAll('.comments__form');
 						// Если комментарии отключены, не показываем новый комментарий
 						if(commentsInputOff.hasAttribute('checked')) {
@@ -819,17 +834,20 @@ function painting(e) {
 						}
 						commentBody.style.display = 'none';
 					}
-					// Создаем новый комментарий в body form-comment
-					commentBody.insertAdjacentHTML('afterbegin', comment);
-					commentBody.querySelector('.comment').querySelector('.comment__time').textContent = new Date().toLocaleString();
-					commentBody.querySelector('.comment').querySelector('.comment__message').textContent = commentsInput.value;
 					// Отправляем комментарий на сервер
 					let commentSend = {
 						message: commentsInput.value,
 						left: parseInt(app.lastChild.style.left),	
 						top: parseInt(app.lastChild.style.top)
 					}
+
 					sendComment(currentImageId, commentSend);
+
+					// Добавляем новый комментарий в приложение
+					commentBody.insertAdjacentHTML('afterbegin', comment);
+					commentBody.querySelector('.comment').querySelector('.comment__time').textContent = new Date().toLocaleString();
+					commentBody.querySelector('.comment').querySelector('.comment__message').textContent = commentsInput.value;
+
 					// Очищаем input text после добавления комментария и отправки на сервер
 					commentsInput.value = '';
 					hiddenScroll(e);
@@ -873,7 +891,7 @@ function painting(e) {
 				e.stopPropagation();
 			});
 		}	
-		canvas.addEventListener('click', createNewComment);
+		app.addEventListener('click', createNewComment);
 		// включить отправку сообщений
 		let commentsFormAll = app.querySelectorAll('.comments__form')
 		for(let commentsForm of commentsFormAll) {
@@ -888,7 +906,7 @@ function painting(e) {
 	// Режим комментирования отключен
 	function stopModeComment() {
 		console.log('Режим комментирования отключен');
-		canvas.removeEventListener('click', createNewComment);
+		app.removeEventListener('click', createNewComment);
 		// прерываем создание нового комментария
 		let commentFormAll = app.querySelectorAll('.comments__form');
 		if(commentFormAll.length === 0) {
@@ -926,7 +944,7 @@ document.addEventListener('DOMContentLoaded', inputFileHidden);
 document.addEventListener('DOMContentLoaded', userSelectsFileTransfer);
 document.addEventListener('DOMContentLoaded', startMenuTransfer);
 document.addEventListener('DOMContentLoaded', appPublication);
-
+document.addEventListener('DOMContentLoaded', appLink);
 // document.addEventListener('DOMContentLoaded', appReload);
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
@@ -942,7 +960,7 @@ function onDOMContentLoaded() {
 function appReload() {
 	if (sessionStorage.getItem("is_reloaded")) {
 		console.log('Страница перезагружена');
-		// interfaceAppReload();
+		
 	}
 	sessionStorage.setItem("is_reloaded", true);
 
@@ -953,13 +971,89 @@ function appReload() {
 // ~~~~~~~~~~~~~~~~~~~~~~~~ Вход в приложение из режима поделиться - по ссылке ~~~~~~~~~~~~~~~~~~~~~~
 
 function appLink() {
-	// статически	
-	menuUrl.value = 'file:///C:/Web%20%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D0%B0/%D0%9D%D0%B5%D1%82%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F%20-%D0%92%D0%B5%D0%B1-%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%87%D0%B8%D0%BA%20(%D0%BA%D1%83%D1%80%D1%81%D1%8B)/JS%20%D0%B2%20%D0%B1%D1%80%D0%B0%D1%83%D0%B7%D0%B5%D1%80%D0%B5/%D0%94%D0%B8%D0%BF%D0%BB%D0%BE%D0%BC%D0%BD%D0%B0%D1%8F%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0/index.html?share';
-	if(window.location.href === menuUrl.value) {
+	let appIndexLink = 'file:///C:/Web%20%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D0%B0/%D0%9D%D0%B5%D1%82%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F%20-%D0%92%D0%B5%D0%B1-%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%87%D0%B8%D0%BA%20(%D0%BA%D1%83%D1%80%D1%81%D1%8B)/JS%20%D0%B2%20%D0%B1%D1%80%D0%B0%D1%83%D0%B7%D0%B5%D1%80%D0%B5/%D0%94%D0%B8%D0%BF%D0%BB%D0%BE%D0%BC%D0%BD%D0%B0%D1%8F%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0/index.html';
+	appByLink = true;
+	if(location.href !== appIndexLink) {
 		alert('Приложение перешло по ссылке');
 		appReview();
+		currentImage.style.display = 'block';
+		currentImageId = location.href.split('?')[1];
+		console.log(currentImageId);
+		connectionWebSocket = new WebSocket('wss://neto-api.herokuapp.com/pic/' + currentImageId);
+
+		connectionWebSocket.onmessage = function(e) {
+			let response = JSON.parse(e.data);
+			console.log(response);
+			if(response.event === 'mask') {
+				// Обновляем ссылку на изображение (с новыми данными)
+				currentImage.src = response.url;
+			}
+		}
+
+		requestImage(currentImageId);
+		menuUrl.value = location.href;
+
+		// подгрузить все комментарии текущей картинки с сервера
+
 	}
 }
+
+function setImage(response) {
+	currentImage.src = response.url;
+	if(response.mask !== undefined) {
+		currentImage.src = response.mask;
+	}
+}
+
+function setComments(response) {
+
+	let commentSnippet = `<div class="comment">
+    <p class="comment__time"></p>
+    <p class="comment__message"></p>
+  </div>`;
+
+	let dataComments = Object.values(response.comments);
+
+	console.log(dataComments);
+
+	for(let i = 0; i < dataComments.length; i++) {
+		let message = dataComments[i].message;
+		let timestamp = dataComments[i].timestamp;
+		let left = dataComments[i].left;
+		let top = dataComments[i].top;
+
+
+
+		app.insertAdjacentHTML('beforeend', commentNew);
+
+		let commentAll = app.querySelectorAll('.comments__form');
+		let commentLast = commentAll[commentAll.length - 1];
+		let commentMarker = commentLast.querySelector('.comments__marker');
+		let commentBody = commentLast.querySelector('.comments__body');
+
+		commentBody.insertAdjacentHTML('afterbegin', commentSnippet);
+		let comment = commentBody.querySelector('.comment');
+
+		let commentsInput = commentBody.querySelector('.comments__input');
+		let commentsClose = commentBody.querySelector('.comments__close');
+		let commentsSubmit = commentBody.querySelector('.comments__submit');
+		commentLast.style.left = left + 'px';
+		commentLast.style.top = top + 'px';
+		comment.querySelector('.comment__time').textContent = timestamp;
+		comment.querySelector('.comment__message').textContent = message;
+		commentBody.style.display = 'none';
+		commentMarker.style.display = 'block';
+		commentMarker.style.zIndex = 1000;
+	}
+
+}
+
+
+
+
+// Сделать CORS в функции requestImage
+
+
 
 
 
