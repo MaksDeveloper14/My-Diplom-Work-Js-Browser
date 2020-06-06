@@ -1,4 +1,3 @@
-
 'use strict';
 
 
@@ -55,6 +54,8 @@ let appByLink;
 
 // Информация нового комментария
 let dataNewComment;
+
+currentImage.src = '';
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~ Отменяем действия браузера по-умолчанию ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -220,6 +221,14 @@ function onClickMenuNew(e) {
 function appPublication() {
 	// ~ Данные приложения ~
 
+	if(app.getAttribute('data-state') === 'review') {
+		var str = location.href;
+		let res = str.split('?');
+		location.href = res[0];
+	}
+
+	// location.href = 'file:///C:/Web%20%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D0%B0/%D0%9D%D0%B5%D1%82%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F%20-%D0%92%D0%B5%D0%B1-%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%87%D0%B8%D0%BA%20(%D0%BA%D1%83%D1%80%D1%81%D1%8B)/JS%20%D0%B2%20%D0%B1%D1%80%D0%B0%D1%83%D0%B7%D0%B5%D1%80%D0%B5/%D0%94%D0%B8%D0%BF%D0%BB%D0%BE%D0%BC%D0%BD%D0%B0%D1%8F%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0/index.html';
+
 	app.setAttribute('data-state', 'publication');
 	menuMode = 'publication';
 
@@ -269,7 +278,6 @@ function appPublication() {
 
 function appReview() {
 	console.log('function appReview');
-
 
 	// ~ интерфейс приложения ~
 
@@ -383,6 +391,7 @@ function sendFile(file) {
 		// сохраняем id текущей картинки с сервера
 		currentImageId = response.id;
 		menuUrl.value = location.href + '?'+ currentImageId;
+		location.href = location.href + '?'+ currentImageId;
 
 		console.log(response);
 
@@ -436,6 +445,7 @@ function requestImage(id) {
 	let xhr = new XMLHttpRequest();
 	xhr.open('GET', 'https://neto-api.herokuapp.com/pic/' + id);
 	xhr.addEventListener('load', () => {
+		currentImage.setAttribute('crossorigin', 'anonymous');
 		let response = JSON.parse(xhr.response);
 		if(appByLink === true) {
 			setImage(response);
@@ -451,7 +461,7 @@ function createWebSocket() {
 	connectionWebSocket = new WebSocket('wss://neto-api.herokuapp.com/pic/' + currentImageId);
 
 	connectionWebSocket.onopen = function(e) {
-		alert('WebSocket соединение открыто');
+		// alert('WebSocket соединение открыто');
 	}
 
 	connectionWebSocket.onmessage = function(e) {
@@ -462,15 +472,15 @@ function createWebSocket() {
 			currentImage.src = response.url;
 			console.log('Есть');
 		}
+		if(response.event === 'comment') {
+			setComments(response);
+		}
 	}
 
 	connectionWebSocket.onclose = function(e) {
-		alert('WebSocket соединение открыто');
+		// alert('WebSocket соединение закрыто');
 	}
 
-	connectionWebSocket.onclose = function(e) {
-		alert('WebSocket соединение закрыто');
-	}
 }
 
 
@@ -607,7 +617,6 @@ function painting(e) {
 	const commentsInputOff = document.getElementById('comments-off');
 	const commentsInputOn = document.getElementById('comments-on');
 	const inputMenuToggle = document.querySelector('.menu__toggle');
-
 
 	menuComments.addEventListener('click', activateModeComment);
 	menuBurger.addEventListener('click', stopModeComment);
@@ -960,7 +969,7 @@ function onDOMContentLoaded() {
 function appReload() {
 	if (sessionStorage.getItem("is_reloaded")) {
 		console.log('Страница перезагружена');
-		
+		// interfaceAppReload();
 	}
 	sessionStorage.setItem("is_reloaded", true);
 
@@ -974,11 +983,16 @@ function appLink() {
 	let appIndexLink = 'file:///C:/Web%20%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D0%B0/%D0%9D%D0%B5%D1%82%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F%20-%D0%92%D0%B5%D0%B1-%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%87%D0%B8%D0%BA%20(%D0%BA%D1%83%D1%80%D1%81%D1%8B)/JS%20%D0%B2%20%D0%B1%D1%80%D0%B0%D1%83%D0%B7%D0%B5%D1%80%D0%B5/%D0%94%D0%B8%D0%BF%D0%BB%D0%BE%D0%BC%D0%BD%D0%B0%D1%8F%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0/index.html';
 	appByLink = true;
 	if(location.href !== appIndexLink) {
-		alert('Приложение перешло по ссылке');
+		// alert('Приложение перешло по ссылке');
 		appReview();
+		canvas.style.display = 'none';
+		// if(app.querySelector('.current-image').src === '') {
+
+		// }
 		currentImage.style.display = 'block';
 		currentImageId = location.href.split('?')[1];
 		console.log(currentImageId);
+
 		connectionWebSocket = new WebSocket('wss://neto-api.herokuapp.com/pic/' + currentImageId);
 
 		connectionWebSocket.onmessage = function(e) {
@@ -988,13 +1002,26 @@ function appLink() {
 				// Обновляем ссылку на изображение (с новыми данными)
 				currentImage.src = response.url;
 			}
+			if(response.event === 'comment') {
+				console.log(response.comment);
+				console.log(response);
+				// Обновляем все комментарии (вызывается функция внутри setComments)
+				requestImage(currentImageId);
+			}
+		}
+
+		connectionWebSocket.onopen = function(e) {
+			// alert('WebSocket соединение открыто');
+		}
+
+		connectionWebSocket.onclose = function(e) {
+			// alert('WebSocket соединение закрыто');
 		}
 
 		requestImage(currentImageId);
 		menuUrl.value = location.href;
 
 		// подгрузить все комментарии текущей картинки с сервера
-
 	}
 }
 
@@ -1005,6 +1032,7 @@ function setImage(response) {
 	}
 }
 
+// Обновление комментариев с сервера
 function setComments(response) {
 
 	let commentSnippet = `<div class="comment">
@@ -1012,59 +1040,52 @@ function setComments(response) {
     <p class="comment__message"></p>
   </div>`;
 
-	let dataComments = Object.values(response.comments);
+	if(response.comments !== undefined) {
+			// подгружаем комментарии
 
-	console.log(dataComments);
+			let dataComments = Object.values(response.comments);
 
-	for(let i = 0; i < dataComments.length; i++) {
-		let message = dataComments[i].message;
-		let timestamp = dataComments[i].timestamp;
-		let left = dataComments[i].left;
-		let top = dataComments[i].top;
+			for(let i = 0; i < dataComments.length; i++) {
+			let message = dataComments[i].message;
+			let timestamp = dataComments[i].timestamp;
+			let left = dataComments[i].left;
+			let top = dataComments[i].top;
 
 
 
-		app.insertAdjacentHTML('beforeend', commentNew);
+			app.insertAdjacentHTML('beforeend', commentNew);
 
-		let commentAll = app.querySelectorAll('.comments__form');
-		let commentLast = commentAll[commentAll.length - 1];
-		let commentMarker = commentLast.querySelector('.comments__marker');
-		let commentBody = commentLast.querySelector('.comments__body');
+			let commentAll = app.querySelectorAll('.comments__form');
+			let commentLast = commentAll[commentAll.length - 1];
+			let commentMarker = commentLast.querySelector('.comments__marker');
+			let commentBody = commentLast.querySelector('.comments__body');
 
-		commentBody.insertAdjacentHTML('afterbegin', commentSnippet);
-		let comment = commentBody.querySelector('.comment');
+			commentBody.insertAdjacentHTML('afterbegin', commentSnippet);
+			let comment = commentBody.querySelector('.comment');
 
-		let commentsInput = commentBody.querySelector('.comments__input');
-		let commentsClose = commentBody.querySelector('.comments__close');
-		let commentsSubmit = commentBody.querySelector('.comments__submit');
-		commentLast.style.left = left + 'px';
-		commentLast.style.top = top + 'px';
-		comment.querySelector('.comment__time').textContent = timestamp;
-		comment.querySelector('.comment__message').textContent = message;
-		commentBody.style.display = 'none';
-		commentMarker.style.display = 'block';
-		commentMarker.style.zIndex = 1000;
+			let commentsInput = commentBody.querySelector('.comments__input');
+			let commentsClose = commentBody.querySelector('.comments__close');
+			let commentsSubmit = commentBody.querySelector('.comments__submit');
+			commentLast.style.left = left + 'px';
+			commentLast.style.top = top + 'px';
+			comment.querySelector('.comment__time').textContent = timestamp;
+			comment.querySelector('.comment__message').textContent = message;
+			commentBody.style.display = 'none';
+			commentMarker.style.display = 'block';
+			commentMarker.style.zIndex = 1000;
+
+			// на все маркеры вешаем клик показывать/ скрывать тело комменатария
+
+			let forms = app.querySelectorAll('.comments__form');
+			for(let form of forms) {
+				let marker = form.querySelector('.comments__marker');
+				let body = form.querySelector('.comments__body');
+				marker.addEventListener('click', function(e) {
+					body.style.display = 'block';
+				});
+			}
+		}
 	}
 
+
 }
-
-
-
-
-// Сделать CORS в функции requestImage
-
-
-
-
-
-
-// почему xhr возвращать надо в конце функции sendFile? 
-// чем отличается currentTarget от target
-// чем отличется стрелочная функция от простой функции
-// промисы  - в выбор файла пользователем, и получение ее с сервера после отправки
-
-// Загрузка изображения работает медленно!
-
-
-
-// Реализовать: режим рисовать и режим поделиться
